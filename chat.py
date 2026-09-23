@@ -45,7 +45,6 @@ def main() -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    # Ищем первый свободный порт из диапазона
     current_port = None
     for port in PORT_RANGE:
         try:
@@ -61,8 +60,13 @@ def main() -> None:
         return
 
     nickname = input("Введи никнейм: ").strip() or f"User_{CLIENT_ID}"
-    print(f"--- Чат запущен на порту {current_port} (ID: {CLIENT_ID}) ---")
-    print("Напиши сообщение и нажми Enter. Для выхода: /exit\n")
+    
+    # НОВОЕ: Спрашиваем IP соседа
+    print("\nУзнай IP соседа через команду ipconfig (строка IPv4-адрес)")
+    target_ip = input("Введи IP соседа (или нажми Enter для всех): ").strip() or "<broadcast>"
+    
+    print(f"\n--- Чат запущен на порту {current_port} ---")
+    print(f"--- Шлем пакеты на: {target_ip} ---")
 
     listener = threading.Thread(target=listen_messages, args=(sock,), daemon=True)
     listener.start()
@@ -78,18 +82,18 @@ def main() -> None:
             msg_id = str(random.randint(100000, 999999))
             payload = f"{CLIENT_ID}:{msg_id}:{nickname}:{text}".encode("utf-8")
 
-            # Шлем веером на все порты диапазона в сеть и на локалхост
+            # Бьем точечно по IP соседа и на всякий случай на локалхост
             for port in PORT_RANGE:
-                for target_ip in ("<broadcast>", "127.0.0.1"):
+                for ip in (target_ip, "127.0.0.1"):
                     try:
-                        sock.sendto(payload, (target_ip, port))
+                        sock.sendto(payload, (ip, port))
                     except OSError:
                         pass
     except (KeyboardInterrupt, EOFError):
         pass
     finally:
         sock.close()
-        print("\nЧат закрыт.")
+
 
 
 if __name__ == "__main__":
